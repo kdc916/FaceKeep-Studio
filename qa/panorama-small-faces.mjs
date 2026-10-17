@@ -35,6 +35,6 @@ try{
  });
  console.log('PANORAMA_QA',JSON.stringify(summary));
  console.log('PANORAMA_PAGE_ERRORS',JSON.stringify(problems));
- if(problems.length||summary.fast.hits<8||summary.detailed.hits<12)process.exitCode=1;
+ if(problems.length||summary.fast.hits<14||summary.detailed.hits<18)process.exitCode=1;
  await page.close();
 }finally{await browser.close()}
