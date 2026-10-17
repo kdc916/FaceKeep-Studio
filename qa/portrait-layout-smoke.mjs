@@ -33,10 +33,12 @@ try{
   await page.waitForTimeout(120);
   const actual=await geometry();
   await page.locator('#panMode').click();
+  await page.locator('#viewport').scrollIntoViewIfNeeded();
   const box=await page.locator('#viewport').boundingBox();
-  await page.mouse.move(box.x+box.width/2,box.y+box.height*0.77);
+  const low=Math.min(height-30,box.y+box.height*0.77),high=Math.max(30,box.y+box.height*0.23);
+  await page.mouse.move(box.x+box.width/2,low);
   await page.mouse.down();
-  await page.mouse.move(box.x+box.width/2,box.y+box.height*0.23,{steps:12});
+  await page.mouse.move(box.x+box.width/2,high,{steps:12});
   await page.mouse.up();
   const panned=await geometry();
   await page.locator('#selectMode').click();
