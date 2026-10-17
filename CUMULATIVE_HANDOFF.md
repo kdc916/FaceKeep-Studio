@@ -1,6 +1,6 @@
 # FaceKeep Studio — 누적 개발 인수인계
 
-최신: **v0.8.1 (2026-10-18)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
+최신: **v0.9.0 (2026-10-18)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
 
 ## 프로젝트
 - 단일 `index.html`의 인라인 JS/CSS, Canvas 2D 기반 브라우저 사진 편집 앱.
@@ -16,6 +16,17 @@
 - **v0.5.0:** 블러/모자이크 경계 외측에 Smoothstep 기반 투명 페더 추가. `softFeather` 0~60% (기본 22%). 타원형/직사각형 마스크 모두 지원. 얼굴 커버 내부는 알파 100%로 보호. 미리보기 리샘플링 소스 `state.previewSource` 사용. 모자이크 셀 크기를 페더 조절과 독립 계산.
 
 
+
+## v0.9.0 — 고밀도 얼굴 탐지 (2026-10-18)
+- 문제: 2048×819 단체사진에서 22개 탐지된 상태에서도 작은 얼굴이 일부 누락. 기존 tilesFor가 2×2 기반이라 AI 내부 입력 리사이즈에서 얼굴 신호가 약해짐.
+- `ai-detector.js`의 `tilesFor(W,H,{detailed,dense})`를 픽셀 기준 겹침 그리드로 교체; `axisStarts`는 모서리 영역을 포함하여 일정한 간격으로 분할.
+- 자동 모드 groupLike(가로/세로>=1.75, 폭>=1400)에서 dense target 420px, BlazeFace full+short 모델 모두 사용.
+- 상세 모드 dense target 360px, 최대 40개 구역(원·근거리 2패스씩), 기존 coarse 타일과 회전 보정 유지.
+- Face Landmarker 2차 검증과 손/옷 오탐 방어 기능 유지; 여러 겹쳐 잡힌 얼굴은 기존 후보 중복 제거 사용.
+- `qa/panorama-small-faces.mjs` 새 테스트: 2048x819 Lena 얼굴 조각 20개를 가로 10열×2행에 70~95px 간격/각도/약한 블러로 배치. 감지 중심과 기준 얼굴 중심의 거리로 검출률 계산.
+- 초기 dense (auto 620px, detailed 500px) quick 8/20, precise 19/20. 추가 튜닝 (auto 540px, detailed 360px) quick 16/20, precise 20/20. 최종 auto 420px의 회귀 테스트 결과도 확인할 것.
+- 정확도를 위해 추론 패스가 증가하므로 모바일 실행시간/발열 유의. 손 오탐 방지, 9명 몽타주, 인생네컷 Fit/100% 회귀 테스트 재실행.
+- 사용자 제공 이미지는 UI 스크린샷이므로 실제 깨끗한 원본 파일과 일치하는 검증은 아직 불가능.
 
 ## v0.8.1 — 얼굴 특징점 기반 오탐 제거 (2026-10-18)
 
