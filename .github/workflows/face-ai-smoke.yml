@@ -28,6 +28,8 @@ jobs:
           mkdir -p qa
           curl -fLsS --retry 3 https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/lena.jpg -o qa/lena.jpg
           test -s qa/lena.jpg
+          curl -fLsS --retry 2 https://raw.githubusercontent.com/google-ai-edge/mediapipe/master/mediapipe/python/solutions/testdata/hands.jpg -o qa/hands.jpg
+          test -s qa/hands.jpg
       - name: Install browser test dependencies
         shell: bash
         run: |
