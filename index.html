@@ -418,7 +418,7 @@ async function detectFaces(detailed){
    console.warn('FaceKeep AI detector unavailable; using embedded offline model.',err);
   }
   if(task!==state.detectTask)return;
-  const useHaar=!aiWorked||(!landmarksAvailable&&detailed)||detected.length===0;
+  const useHaar=detailed||!aiWorked||detected.length===0;
   if(useHaar){
    autoEnhanced=true;
    setStatus(aiWorked?'AI 분석을 보강하는 내장 탐지 중…':'AI 엔진 미지원 · 내장 오프라인 감지로 전환 중…');
