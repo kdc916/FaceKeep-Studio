@@ -43,6 +43,7 @@ try{
   await page.locator('#faceList .face-pill').last().click();
   const focused=await geometry();
   const keep=await page.locator('#keepCount').innerText();
+  await page.locator('#viewport').scrollIntoViewIfNeeded();
   const target=await page.evaluate(()=>{
    const b=document.querySelector('#photoCanvas').getBoundingClientRect();
    return{x:b.left+b.width*0.5,y:b.top+b.height*(1930/2400)};
