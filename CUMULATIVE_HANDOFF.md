@@ -24,7 +24,7 @@
 - 상세 모드 dense target 360px, 최대 40개 구역(원·근거리 2패스씩), 기존 coarse 타일과 회전 보정 유지.
 - Face Landmarker 2차 검증과 손/옷 오탐 방어 기능 유지; 여러 겹쳐 잡힌 얼굴은 기존 후보 중복 제거 사용.
 - `qa/panorama-small-faces.mjs` 새 테스트: 2048x819 Lena 얼굴 조각 20개를 가로 10열×2행에 70~95px 간격/각도/약한 블러로 배치. 감지 중심과 기준 얼굴 중심의 거리로 검출률 계산.
-- 초기 dense (auto 620px, detailed 500px) quick 8/20, precise 19/20. 추가 튜닝 (auto 540px, detailed 360px) quick 16/20, precise 20/20. 최종 auto 420px의 회귀 테스트 결과도 확인할 것.
+- 초기 dense (auto 620px, detailed 500px) quick 8/20, precise 19/20. 추가 튜닝 (auto 540px, detailed 360px) quick 16/20, precise 20/20. 최종 auto 420px에서는 quick 20/20, detailed 20/20. 자동 47패스, 정밀 78패스. 실제 사진은 아직 별도 테스트 필요.
 - 정확도를 위해 추론 패스가 증가하므로 모바일 실행시간/발열 유의. 손 오탐 방지, 9명 몽타주, 인생네컷 Fit/100% 회귀 테스트 재실행.
 - 사용자 제공 이미지는 UI 스크린샷이므로 실제 깨끗한 원본 파일과 일치하는 검증은 아직 불가능.
 
