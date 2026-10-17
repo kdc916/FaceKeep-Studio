@@ -3,6 +3,7 @@
 const PACKAGE_VERSION='0.10.35';
 const BASE=new URL('./',import.meta.url);
 const REMOTE_WASM=`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${PACKAGE_VERSION}/wasm`;
+const LANDMARKER_MODEL='https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 const MODELS={
  full:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite',
  short:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
@@ -45,7 +46,7 @@ async function initialize(status){
     const shortURL=(hasModels&&await exists(localModels.short))?localModels.short:MODELS.short;
     short=await createDetector(mod,wasm,shortURL,0.33);
    }catch(e){console.warn('FaceKeep: short-range model unavailable',e)}
-   return {full,short,engine:hasModels&&wasmURL===localWasm?'내장 MediaPipe BlazeFace':'MediaPipe BlazeFace (온라인 모델)'};
+   return {full,short,mod,wasm,verifierPromise:null,engine:hasModels&&wasmURL===localWasm?'내장 MediaPipe BlazeFace':'MediaPipe BlazeFace (온라인 모델)'};
   }catch(e){last=e;console.warn('FaceKeep: AI init candidate failed',wasmURL,e)}
  }
  throw Error(`AI 모델 초기화 실패: ${last?.message||last}`);
@@ -92,6 +93,94 @@ function rotatedPass(detector,im,angle,W,H){
  }
  return out.filter(b=>b.x>=-15&&b.y>=-15&&b.x+b.w<=W+15&&b.y+b.h<=H+15);
 }
+
+function matching(a,b){
+ const x=Math.max(a.x,b.x),y=Math.max(a.y,b.y);
+ const w=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-x),h=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-y);
+ const inter=w*h;if(!inter)return false;
+ const iou=inter/(a.w*a.h+b.w*b.h-inter),contained=inter/Math.min(a.w*a.h,b.w*b.h);
+ const cx=Math.abs((a.x+a.w/2)-(b.x+b.w/2)),cy=Math.abs((a.y+a.h/2)-(b.y+b.h/2));
+ return iou>0.27||(contained>0.63&&cx<Math.min(a.w,b.w)*0.40&&cy<Math.min(a.h,b.h)*0.40);
+}
+function clusterCandidates(boxes){
+ const groups=[];
+ for(const b of [...boxes].sort((a,b)=>(b.confidence||0)-(a.confidence||0))){
+  const g=groups.find(g=>matching(g.best,b));
+  if(g){g.hits++;g.sources.add(b.source||'unknown');g.confidence=Math.max(g.confidence,b.confidence||0)}
+  else groups.push({best:b,hits:1,sources:new Set([b.source||'unknown']),confidence:b.confidence||0});
+ }
+ return groups;
+}
+async function verifierReady(ai){
+ if(ai.verifierPromise)return ai.verifierPromise;
+ ai.verifierPromise=(async()=>{
+  const local=new URL('./vendor/models/face_landmarker.task',BASE).href;
+  const model=(await exists(local))?local:LANDMARKER_MODEL;
+  const landmarker=await ai.mod.FaceLandmarker.createFromOptions(ai.wasm,{
+   baseOptions:{modelAssetPath:model,delegate:'CPU'},
+   runningMode:'IMAGE',numFaces:1,minFaceDetectionConfidence:0.48,minFacePresenceConfidence:0.52,
+   outputFaceBlendshapes:false,outputFacialTransformationMatrixes:false
+  });
+  return landmarker;
+ })().catch(e=>{console.warn('FaceKeep face landmark verifier unavailable:',e);return null});
+ return ai.verifierPromise;
+}
+function cropCandidate(image,b){
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ const cx=b.x+b.w/2,cy=b.y+b.h/2;
+ const rw=Math.min(W,Math.max(80,b.w*1.7)),rh=Math.min(H,Math.max(80,b.h*1.7));
+ const x=Math.max(0,Math.min(W-rw,cx-rw/2)),y=Math.max(0,Math.min(H-rh,cy-rh/2));
+ const size=384,c=document.createElement('canvas');c.width=size;c.height=size;
+ const ctx=c.getContext('2d',{alpha:false});
+ ctx.fillStyle='#666';ctx.fillRect(0,0,size,size);ctx.drawImage(image,x,y,rw,rh,0,0,size,size);
+ return {canvas:c,x,y,w:rw,h:rh};
+}
+function geometryVerified(landmarks,crop,b){
+ if(!landmarks||landmarks.length<300)return false;
+ const keyIds=[1,4,10,33,61,152,168,263,291];
+ const valid=keyIds.map(i=>landmarks[i]).filter(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y));
+ if(valid.length<8)return false;
+ const nose=landmarks[1];
+ const nx=crop.x+nose.x*crop.w,ny=crop.y+nose.y*crop.h;
+ const cx=b.x+b.w/2,cy=b.y+b.h/2;
+ const nearX=Math.abs(nx-cx)<b.w*0.58,nearY=Math.abs(ny-cy)<b.h*0.58;
+ const eyeL=landmarks[33],eyeR=landmarks[263],chin=landmarks[152],brow=landmarks[10];
+ const eyeSep=Math.hypot((eyeL.x-eyeR.x)*crop.w,(eyeL.y-eyeR.y)*crop.h);
+ const vertical=Math.hypot((chin.x-brow.x)*crop.w,(chin.y-brow.y)*crop.h);
+ return nearX&&nearY&&eyeSep>b.w*0.11&&vertical>b.h*0.20;
+}
+async function verifyClusters(ai,image,boxes,{status=()=>{},cancelled=()=>false}={}){
+ const grouped=clusterCandidates(boxes);
+ const verifier=await verifierReady(ai);
+ const accepted=[],rejected=[];
+ if(!verifier){
+  // Degraded mode: only retain candidates confirmed by independent full/short passes.
+  for(const g of grouped){
+   if(g.sources.size>=2&&g.hits>=2&&g.confidence>=0.60)accepted.push(g.best);
+   else rejected.push(g.best);
+  }
+  return{faces:accepted,rejected:rejected.length,landmarksAvailable:false};
+ }
+ for(let i=0;i<grouped.length;i++){
+  if(cancelled())break;
+  const g=grouped[i];
+  status(`얼굴 특징점 검증 ${i+1}/${grouped.length} · 오탐지 제거`);
+  const crop=cropCandidate(image,g.best);
+  let valid=false;
+  try{
+   const answer=verifier.detect(crop.canvas);
+   valid=(answer.faceLandmarks||[]).some(lm=>geometryVerified(lm,crop,g.best));
+  }catch(e){console.warn('Face landmark candidate verification error',e)}
+  if(valid)accepted.push({...g.best,verified:true});
+  else rejected.push(g.best);
+  if(i%3===2)await tick();
+ }
+ return{faces:accepted,rejected:rejected.length,landmarksAvailable:true};
+}
+export async function verifyExtraCandidates(image,boxes,{status=()=>{},cancelled=()=>false}={}){
+ const ai=await ready(status);
+ return verifyClusters(ai,image,boxes,{status,cancelled});
+}
 export async function detectFacesNeural(image,{detailed=false,status=()=>{},cancelled=()=>false}={}){
  const ai=await ready(status),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const passes=[{r:{x:0,y:0,w:W,h:H},maxSide:1400,detector:ai.full,tag:'전체 AI'}];
@@ -117,5 +206,7 @@ export async function detectFacesNeural(image,{detailed=false,status=()=>{},canc
    found.push(...rotatedPass(ai.short,image,angle,W,H));await tick();
   }
  }
- return{faces:found,engine:ai.engine,passes:passes.length,primary:found.length};
+ const verified=await verifyClusters(ai,image,found,{status,cancelled});
+ return{faces:verified.faces,rejected:verified.rejected,landmarksAvailable:verified.landmarksAvailable,
+ engine:ai.engine+(verified.landmarksAvailable?' + Face Landmarker 2차 검증':' (검증기 미사용)'),passes:passes.length,primary:found.length};
 }
