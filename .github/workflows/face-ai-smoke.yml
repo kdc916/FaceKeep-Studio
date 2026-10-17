@@ -8,6 +8,7 @@ on:
       - 'qa/face-ai-smoke.mjs'
       - 'qa/portrait-layout-smoke.mjs'
       - 'qa/panorama-small-faces.mjs'
+      - 'qa/tiny-group-smoke.mjs'
       - 'index.html'
       - 'ai-detector.js'
 
@@ -49,3 +50,4 @@ jobs:
           node qa/face-ai-smoke.mjs
           node qa/portrait-layout-smoke.mjs
           node qa/panorama-small-faces.mjs
+          node qa/tiny-group-smoke.mjs
