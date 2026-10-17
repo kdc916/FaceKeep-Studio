@@ -77,7 +77,7 @@ function axisStarts(length,windowSize,overlap=.27){
 function tilesFor(W,H,{detailed=false,dense=false}={}){
  const panorama=Math.max(W,H)/Math.max(1,Math.min(W,H))>=2;
  const tall=H>W;
- const target=dense?(detailed?500:620):(detailed?850:1100);
+ const target=dense?(detailed?360:540):(detailed?850:1100);
  let tileW=Math.min(W,target),tileH=Math.min(H,target);
  if(panorama){
   if(tall)tileW=W, tileH=Math.min(H,target*.78);
@@ -87,7 +87,7 @@ function tilesFor(W,H,{detailed=false,dense=false}={}){
  const out=[];
  for(const y of ys)for(const x of xs)out.push({x,y,w:tileW,h:tileH});
  // Bound inference costs on very large files. Coarse tiles run separately.
- const limit=dense?(detailed?32:22):16;
+ const limit=dense?(detailed?40:24):16;
  if(out.length<=limit)return out;
  const stride=Math.ceil(out.length/limit);
  const sample=out.filter((_,i)=>i%stride===0);
@@ -216,7 +216,7 @@ export async function detectFacesNeural(image,{detailed=false,status=()=>{},canc
   const dense=tilesFor(W,H,{detailed,dense:true});
   for(const [i,r] of dense.entries()){
    passes.push({r,maxSide:1150,detector:ai.full,tag:`작은 얼굴 정밀 ${i+1}/${dense.length}`});
-   if(ai.short&&detailed)passes.push({r,maxSide:1150,detector:ai.short,tag:`작은 얼굴 보조 ${i+1}/${dense.length}`});
+   if(ai.short)passes.push({r,maxSide:1150,detector:ai.short,tag:`작은 얼굴 보조 ${i+1}/${dense.length}`});
   }
  }
  const found=[];
