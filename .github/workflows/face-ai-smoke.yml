@@ -9,6 +9,7 @@ on:
       - 'qa/portrait-layout-smoke.mjs'
       - 'qa/panorama-small-faces.mjs'
       - 'index.html'
+      - 'ai-detector.js'
 
 permissions:
   contents: read
