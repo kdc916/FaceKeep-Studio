@@ -77,7 +77,7 @@ function axisStarts(length,windowSize,overlap=.27){
 function tilesFor(W,H,{detailed=false,dense=false}={}){
  const panorama=Math.max(W,H)/Math.max(1,Math.min(W,H))>=2;
  const tall=H>W;
- const target=dense?(detailed?360:540):(detailed?850:1100);
+ const target=dense?(detailed?360:420):(detailed?850:1100);
  let tileW=Math.min(W,target),tileH=Math.min(H,target);
  if(panorama){
   if(tall)tileW=W, tileH=Math.min(H,target*.78);
