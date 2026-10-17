@@ -66,15 +66,33 @@ function results(detector,canvas,r,sx,sy,tag){
    w:(b.width||0)*sx,h:(b.height||0)*sy,score:2+Math.min(0.3,score*0.3),source:tag,confidence:score};
  }).filter(b=>b.w>=11&&b.h>=11&&b.w<r.w*0.92&&b.h<r.h*0.94&&b.x>=-15&&b.y>=-15);
 }
-function tilesFor(W,H){
- const large=Math.max(W,H)>3000,cols=large?3:2,rows=large&&H>2600?3:2;
- const out=[];
- for(let iy=0;iy<rows;iy++)for(let ix=0;ix<cols;ix++){
-  const w=Math.min(W,W/cols*1.24),h=Math.min(H,H/rows*1.24);
-  out.push({x:Math.max(0,Math.min(W-w,W*(ix+0.5)/cols-w/2)),
-   y:Math.max(0,Math.min(H-h,H*(iy+0.5)/rows-h/2)),w,h});
+// Dense, overlapping pixel-space regions: panoramic school/group photographs
+// can contain many 20-50px faces lost by long-axis downsampling.
+function axisStarts(length,windowSize,overlap=.27){
+ if(length<=windowSize)return[0];
+ const n=Math.ceil((length-windowSize)/(windowSize*(1-overlap)))+1;
+ const out=[];for(let i=0;i<n;i++)out.push(Math.round(i*(length-windowSize)/(n-1)));
+ return [...new Set(out)];
+}
+function tilesFor(W,H,{detailed=false,dense=false}={}){
+ const panorama=Math.max(W,H)/Math.max(1,Math.min(W,H))>=2;
+ const tall=H>W;
+ const target=dense?(detailed?500:620):(detailed?850:1100);
+ let tileW=Math.min(W,target),tileH=Math.min(H,target);
+ if(panorama){
+  if(tall)tileW=W, tileH=Math.min(H,target*.78);
+  else tileH=Math.min(H,target*.86),tileW=Math.min(W,target);
  }
- return out;
+ const xs=axisStarts(W,tileW,dense?.30:.24),ys=axisStarts(H,tileH,dense?.30:.24);
+ const out=[];
+ for(const y of ys)for(const x of xs)out.push({x,y,w:tileW,h:tileH});
+ // Bound inference costs on very large files. Coarse tiles run separately.
+ const limit=dense?(detailed?32:22):16;
+ if(out.length<=limit)return out;
+ const stride=Math.ceil(out.length/limit);
+ const sample=out.filter((_,i)=>i%stride===0);
+ if(!sample.some(r=>r.x+r.w>=W-1&&r.y+r.h>=H-1))sample.push({x:W-tileW,y:H-tileH,w:tileW,h:tileH});
+ return sample;
 }
 function rotatedPass(detector,im,angle,W,H){
  const original=canvasRegion(im,{x:0,y:0,w:W,h:H},1200);
@@ -185,10 +203,20 @@ export async function detectFacesNeural(image,{detailed=false,status=()=>{},canc
  const ai=await ready(status),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const passes=[{r:{x:0,y:0,w:W,h:H},maxSide:1400,detector:ai.full,tag:'전체 AI'}];
  if(ai.short)passes.push({r:{x:0,y:0,w:W,h:H},maxSide:1400,detector:ai.short,tag:'근거리 AI'});
- if(Math.max(W,H)>=1500||detailed){
-  for(const [i,r] of tilesFor(W,H).entries()){
+ if(Math.max(W,H)>=1200||detailed){
+  const coarse=tilesFor(W,H,{detailed,dense:false});
+  for(const [i,r] of coarse.entries()){
    passes.push({r,maxSide:1200,detector:ai.full,tag:`확대 AI ${i+1}`});
    if(ai.short&&detailed)passes.push({r,maxSide:1200,detector:ai.short,tag:`근거리 확대 ${i+1}`});
+  }
+ }
+ // Wide team/school photos need a finer scan even when "Auto" is selected.
+ const groupLike=W/H>=1.75&&W>=1400;
+ if(detailed||groupLike){
+  const dense=tilesFor(W,H,{detailed,dense:true});
+  for(const [i,r] of dense.entries()){
+   passes.push({r,maxSide:1150,detector:ai.full,tag:`작은 얼굴 정밀 ${i+1}/${dense.length}`});
+   if(ai.short&&detailed)passes.push({r,maxSide:1150,detector:ai.short,tag:`작은 얼굴 보조 ${i+1}/${dense.length}`});
   }
  }
  const found=[];
