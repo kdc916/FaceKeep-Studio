@@ -29,6 +29,18 @@ try{
   return {engine:single.engine,singleFaces:single.faces.length,rotatedFaces:rotated.faces.length,blurredFaces:blurred.faces.length,montageRaw:group.faces.length,montageUnique:dedup.length,
     groupBoxes:dedup.map(b=>({x:Math.round(b.x),y:Math.round(b.y),w:Math.round(b.w),h:Math.round(b.h)}))};
  });
+ const groupPng=await page.evaluate(async()=>{
+  const im=new Image();im.src='/qa/lena.jpg';await im.decode();
+  const c=document.createElement('canvas');c.width=1536;c.height=1536;
+  const ctx=c.getContext('2d');
+  for(let y=0;y<3;y++)for(let x=0;x<3;x++)ctx.drawImage(im,x*512,y*512,512,512);
+  return c.toDataURL('image/png').split(',')[1];
+ });
+ await page.locator('#fileInput').setInputFiles({name:'nine-faces.png',mimeType:'image/png',buffer:Buffer.from(groupPng,'base64')});
+ await page.waitForFunction(()=>/탐지 완료|보강 완료|대체 감지 완료/.test(document.querySelector('#statusText')?.textContent||''),null,{timeout:120000});
+ const uiFaces=Number(await page.locator('#detectedCount').innerText());
+ console.log('FACEKEEP_UI_QA',JSON.stringify({uiFaces,status:await page.locator('#statusText').innerText()}));
+ if(uiFaces<8)process.exitCode=1;
  console.log('FACEKEEP_QA',JSON.stringify(outcome));
  console.log('PAGE_ERRORS',JSON.stringify(errors));
  if(outcome.singleFaces<1||outcome.rotatedFaces<1||outcome.blurredFaces<1||outcome.montageUnique<8||errors.length)process.exitCode=1;
