@@ -1,6 +1,6 @@
 # FaceKeep Studio — 누적 개발 인수인계
 
-최신: **v0.5.1 (2026-10-17)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
+최신: **v0.7.0 (2026-10-17)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
 
 ## 프로젝트
 - 단일 `index.html`의 인라인 JS/CSS, Canvas 2D 기반 브라우저 사진 편집 앱.
@@ -15,6 +15,15 @@
 - **v0.4.0:** 정면 기본/보조 + 양쪽 측면 모델, 작은 얼굴 타일 정밀 탐지 및 자동 보강, 진단 정보 복사.
 - **v0.5.0:** 블러/모자이크 경계 외측에 Smoothstep 기반 투명 페더 추가. `softFeather` 0~60% (기본 22%). 타원형/직사각형 마스크 모두 지원. 얼굴 커버 내부는 알파 100%로 보호. 미리보기 리샘플링 소스 `state.previewSource` 사용. 모자이크 셀 크기를 페더 조절과 독립 계산.
 
+
+
+## v0.7.0 — AI 우선 탐지 (2026-10-17)
+- `ai-detector.js`: MediaPipe Tasks Vision `0.10.35`와 full-range / short-range BlazeFace, 사진 크기에 따라 중첩 타일 확대 탐지. 정밀 재탐지에 +/-20도 회전 보강.
+- `index.html`: `detectFaces`를 AI 우선 → 필요 시 Haar 대체/정밀 보강 파이프라인으로 교체. 신경망 점수 우선으로 중복 제거, 진단에 aiWorked/aiError/aiPasses 기록.
+- 정사각형 이모티콘: `cover`에서 긴 축과 1.08배 커버, `drawEmojiSquare` 오프스크린 캔버스 래스터화. 사용자 PNG 스티커 원래 비율 유지.
+- `vendor/`: GitHub Actions가 Vision JS/WASM/모델을 GitHub 저장소에 다운로드 및 커밋하도록 구성. 앱은 자체 파일을 먼저 시도하고 없으면 CDN을 시도함.
+- **검증 한계:** 정적 코드/브라우저 기본 동작은 확인 가능하나 이번 환경에서 외부 신경망 파일 다운로드가 차단되어 AI 추론에 대한 실제 사진 인식률 실험은 아직 미완료. GitHub Actions 자산 배포 성공 여부 별도 확인 필요.
+- 외부 모델이 차단돼도 기존 Haar fallback이 실행됨. 에러는 '얼굴 감지 진단 정보'에서 확인.
 
 ## v0.5.1 레이아웃 수정 (2026-10-17)
 - `.emoji-grid`: 7열 `repeat(7,minmax(0,1fr))`, `width/max-width:100%`, `min-width:0`으로 각 그리드 열의 최소 콘텐츠 크기로 인한 overflow 제거.
