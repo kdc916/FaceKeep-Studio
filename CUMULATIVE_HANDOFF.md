@@ -1,6 +1,6 @@
 # FaceKeep Studio — 누적 개발 인수인계
 
-최신: **v0.5.0 (2026-10-17)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
+최신: **v0.5.1 (2026-10-17)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
 
 ## 프로젝트
 - 단일 `index.html`의 인라인 JS/CSS, Canvas 2D 기반 브라우저 사진 편집 앱.
@@ -14,6 +14,15 @@
 - **v0.3.0:** HEIC/HEIF 인식, 브라우저 미지원 시 heic-to 라이브러리 온라인 로드 및 JPEG 변환 경로.
 - **v0.4.0:** 정면 기본/보조 + 양쪽 측면 모델, 작은 얼굴 타일 정밀 탐지 및 자동 보강, 진단 정보 복사.
 - **v0.5.0:** 블러/모자이크 경계 외측에 Smoothstep 기반 투명 페더 추가. `softFeather` 0~60% (기본 22%). 타원형/직사각형 마스크 모두 지원. 얼굴 커버 내부는 알파 100%로 보호. 미리보기 리샘플링 소스 `state.previewSource` 사용. 모자이크 셀 크기를 페더 조절과 독립 계산.
+
+
+## v0.5.1 레이아웃 수정 (2026-10-17)
+- `.emoji-grid`: 7열 `repeat(7,minmax(0,1fr))`, `width/max-width:100%`, `min-width:0`으로 각 그리드 열의 최소 콘텐츠 크기로 인한 overflow 제거.
+- `.emoji-btn`: `min-width:0`, `width/max-width:100%`, `min-height:0`, `aspect-ratio:1/1`, `overflow:hidden`, `padding:0` 으로 컨테이너 크기 준수.
+- `.sidebar`/`.panel`: `min-width:0`으로 모바일 좁은 화면 폭에서도 과확장 방지.
+- `.input-group #emojiApply`: 고정 최소 너비 64px, `white-space:nowrap`, 입력창 `flex:1 1 0`으로 '적용' 글자 줄바꿈 방지.
+- UI 회귀 테스트: Chromium에서 1920/1440/1030/800/760/660/480/390/320px 뷰포트, 각 21개 이모지 7열 3행, 버튼 카드 경계 내 위치, 전체 가로 overflow=0, 입력/적용 버튼 정상, 페이지 JS 오류 0건.
+- 얼굴 감지/모자이크/블러/HEIC 처리 로직은 변경하지 않음. Android 실기기 검증은 별도 필요.
 
 ## v0.5.0 주요 구현 위치
 - UI: `#softOptions`, `#softFeather`, `#softFeatherV`.
