@@ -1,6 +1,6 @@
 # FaceKeep Studio — 누적 개발 인수인계
 
-최신: **v0.7.0 (2026-10-17)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
+최신: **v0.8.0 (2026-10-17)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
 
 ## 프로젝트
 - 단일 `index.html`의 인라인 JS/CSS, Canvas 2D 기반 브라우저 사진 편집 앱.
@@ -16,6 +16,17 @@
 - **v0.5.0:** 블러/모자이크 경계 외측에 Smoothstep 기반 투명 페더 추가. `softFeather` 0~60% (기본 22%). 타원형/직사각형 마스크 모두 지원. 얼굴 커버 내부는 알파 100%로 보호. 미리보기 리샘플링 소스 `state.previewSource` 사용. 모자이크 셀 크기를 페더 조절과 독립 계산.
 
 
+
+## v0.8.0 — 세로 사진 Fit/100%·터치 이동
+- 원인: 기존 `layoutCanvas`가 viewport 가로만으로 크기를 정함. 특히 모바일의 42vh 높이 제한으로 세로사진 끝이 스크롤 영역 뒤에 남아 마지막 컷에서 선택하기 어려움.
+- 새 `layoutCanvas(centerOnZoom)`: `min((viewportWidth-24)/imageWidth,(viewportHeight-24)/imageHeight)`로 Fit 배율을 계산. 100/150/200%는 이미지 1픽셀을 CSS 1/1.5/2픽셀로 표시.
+- UI: `#fitBtn`, `#actualBtn`, `#zoomSelect`(Fit/100/150/200), `#panMode`.
+- `#viewport` 내부 스크롤 유지, 사용자 손가락/마우스 드래그로 상하좌우 이동하도록 `pointerdown`, `pointermove`, `pointerup`의 `pan` 상태 분기 추가.
+- Face pill 선택하면 `focusFaceIfZoomed`로 확대 뷰에서 해당 인물 위치로 자동 이동. 사용자가 얼굴을 계속 눌러 유지/가리기를 전환 가능.
+- Fit 재선택 시 `scrollTop`/`scrollLeft` 초기화.
+- 모바일 뷰포트 높이 52dvh(최소 225px, 최대 480px), 데스크톱 72dvh(최소 340px, 최대 900px)로 명시적 관리.
+- Browser QA: `qa/portrait-layout-smoke.mjs`에서 600×2400 세로 4컷, 모바일/태블릿/PC의 Fit 내부 전부 표시 → 100% 확대 → pan → 하단 얼굴 선택/토글 → 다시 Fit 확인.
+- AI 추론·HEIC 변환·저장 이미지 좌표는 변경하지 않음.
 
 ## v0.7.0 — AI 우선 탐지 (2026-10-17)
 - `ai-detector.js`: MediaPipe Tasks Vision `0.10.35`와 full-range / short-range BlazeFace, 사진 크기에 따라 중첩 타일 확대 탐지. 정밀 재탐지에 +/-20도 회전 보강.
