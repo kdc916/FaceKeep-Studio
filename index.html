@@ -21,7 +21,7 @@
 @media(max-width:760px){.shell{padding:12px 11px 50px}.top{margin:5px 2px 16px}.topnote{font-size:10px;padding:6px 9px}.brand-title{font-size:16px}.brand-sub{font-size:9px}.logo{width:39px;height:39px;font-size:21px}.layout{display:flex;flex-direction:column;gap:12px}.editor{order:0;min-height:0;width:100%;border-radius:16px;position:sticky;top:0;z-index:5}.sidebar{order:1;width:100%;display:grid;grid-template-columns:1fr;gap:12px}.panel{padding:16px;border-radius:16px}.editor-toolbar{padding:11px}.editor-toolbar .label{display:none}.toolbar-group{gap:6px}.mode-bar button{font-size:11px;padding:7px}.viewport{min-height:210px;height: min(42vh,360px);max-height:42vh}.statbar{padding:10px;font-size:10px}.stats{gap:9px}.emoji-grid{grid-template-columns:repeat(7,minmax(0,1fr))}.emoji-btn{font-size:clamp(19px,3.3vw,23px)}.faces{max-height:200px}.hide-mobile{display:none}}
 .debug-panel{margin-top:12px;border:1px solid var(--stroke);border-radius:11px;padding:10px}.debug-panel summary{cursor:pointer;color:var(--muted);font-size:12px}.debug-panel pre{font:11px/1.5 monospace;max-height:200px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#acbdb8;padding:7px}.debug-panel button{font-size:11px}
 /* v0.8: constrain tall images using both viewport dimensions; 100% pans inside viewport. */
-.viewport{height:clamp(340px,72dvh,900px);max-height:none;min-height:0;overscroll-behavior:contain;}
+.viewport{flex:0 0 auto;height:clamp(340px,72dvh,900px);max-height:none;min-height:0;overscroll-behavior:contain;}
 .canvas-holder{flex:0 0 auto;max-width:none;max-height:none;}
 #photoCanvas{touch-action:none;}
 .zoom-actions{display:inline-flex;gap:4px;align-items:center;}
