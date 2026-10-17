@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - '.github/workflows/face-ai-smoke.yml'
+      - 'qa/face-ai-smoke.mjs'
 
 permissions:
   contents: read
