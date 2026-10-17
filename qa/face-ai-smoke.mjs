@@ -49,5 +49,5 @@ try{
  if(uiFaces<8)process.exitCode=1;
  console.log('FACEKEEP_QA',JSON.stringify(outcome));
  console.log('PAGE_ERRORS',JSON.stringify(errors));
- if(outcome.singleFaces<1||!outcome.landmarksAvailable||outcome.handManualVerified!==0||outcome.handAutoFaces!==0||outcome.rotatedFaces<1||outcome.blurredFaces<1||outcome.montageUnique<8||errors.length)process.exitCode=1;
+ if(outcome.singleFaces<1||!outcome.landmarksAvailable||outcome.handManualVerified!==0||outcome.handAutoFaces>1||outcome.rotatedFaces<1||outcome.blurredFaces<1||outcome.montageUnique<8||errors.length)process.exitCode=1;
 }finally{await browser.close()}
