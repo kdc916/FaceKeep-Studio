@@ -7,6 +7,7 @@ on:
       - '.github/workflows/face-ai-smoke.yml'
       - 'qa/face-ai-smoke.mjs'
       - 'qa/portrait-layout-smoke.mjs'
+      - 'qa/panorama-small-faces.mjs'
       - 'index.html'
 
 permissions:
@@ -46,3 +47,4 @@ jobs:
           sleep 3
           node qa/face-ai-smoke.mjs
           node qa/portrait-layout-smoke.mjs
+          node qa/panorama-small-faces.mjs
