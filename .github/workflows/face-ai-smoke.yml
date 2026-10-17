@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/face-ai-smoke.yml'
       - 'qa/face-ai-smoke.mjs'
+      - 'qa/portrait-layout-smoke.mjs'
 
 permissions:
   contents: read
@@ -41,3 +42,4 @@ jobs:
           trap 'kill "$SERVER_PID" || true' EXIT
           sleep 3
           node qa/face-ai-smoke.mjs
+          node qa/portrait-layout-smoke.mjs
