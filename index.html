@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101217">
-<title>FaceKeep Studio v0.8.1 · 선택한 얼굴만 남기기</title>
+<title>FaceKeep Studio v0.9.0 · 선택한 얼굴만 남기기</title>
 <style>
 :root{color-scheme:dark;--bg:#101217;--card:#191c23;--card2:#222630;--stroke:#313642;--muted:#929baa;--text:#f2f4fa;--accent:#a5ed76;--accent2:#7bc8ee;--warn:#ffc477;--shadow:0 24px 80px #0005}
 [hidden]{display:none!important}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Pretendard,'Noto Sans KR',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.5}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.42}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
@@ -32,10 +32,10 @@
 </head>
 <body>
 <div class="shell">
-<header class="top"><div class="brand"><div class="logo" aria-hidden="true">◉</div><div><div class="brand-title">FaceKeep <span>Studio</span></div><div class="brand-sub">SELECTIVE FACE PRIVACY · v0.8.1</div></div></div><div class="topnote"><span class="dot"></span>사진 서버 업로드 없음</div></header>
+<header class="top"><div class="brand"><div class="logo" aria-hidden="true">◉</div><div><div class="brand-title">FaceKeep <span>Studio</span></div><div class="brand-sub">SELECTIVE FACE PRIVACY · v0.9.0</div></div></div><div class="topnote"><span class="dot"></span>사진 서버 업로드 없음</div></header>
 <main class="layout">
 <aside class="sidebar">
-<section class="panel"><div class="panel-header"><h2>01. 사진 불러오기</h2><span class="panel-count">INPUT</span></div><button id="openPhoto" class="upload" type="button"><span class="upload-ico">▧</span><span><strong>사진 선택 / 카메라</strong><small>JPG · PNG · WEBP · HEIC · HEIF</small></span></button><input class="visually-hidden" id="fileInput" type="file" accept="image/*,.heic,.heif"><div class="filemeta" id="filemeta">이미지 선택 후 내장 엔진으로 얼굴을 자동 감지합니다.</div><div class="action-row" style="margin-top:10px"><button id="detectBtn" class="btn soft" disabled>⌕ 자동 얼굴 감지</button><button id="detailedBtn" class="btn" disabled>▦ 작은 얼굴·측면 정밀 탐지</button></div><p class="hint">얼굴 감지는 오프라인으로 작동합니다. HEIC/HEIF는 브라우저에서 바로 열리지 않으면 변환 엔진을 온라인으로 불러옵니다(인터넷 필요). 사진 데이터는 브라우저 안에서 처리되며 업로드하지 않습니다. 정밀 탐지는 정면·측면 얼굴을 더 높은 해상도로 분석합니다. 누락된 얼굴은 수동으로 추가하세요.</p><details class="debug-panel"><summary>얼굴 감지 진단 정보</summary><pre id="diagnostics" aria-label="자동 감지 진단 정보">사진을 불러오세요.</pre><button type="button" class="btn" id="copyDiagnostics">진단 내용 복사</button></details></section>
+<section class="panel"><div class="panel-header"><h2>01. 사진 불러오기</h2><span class="panel-count">INPUT</span></div><button id="openPhoto" class="upload" type="button"><span class="upload-ico">▧</span><span><strong>사진 선택 / 카메라</strong><small>JPG · PNG · WEBP · HEIC · HEIF</small></span></button><input class="visually-hidden" id="fileInput" type="file" accept="image/*,.heic,.heif"><div class="filemeta" id="filemeta">이미지 선택 후 내장 엔진으로 얼굴을 자동 감지합니다.</div><div class="action-row" style="margin-top:10px"><button id="detectBtn" class="btn soft" disabled>⌕ 자동 얼굴 감지</button><button id="detailedBtn" class="btn" disabled>▦ 작은 얼굴·측면 정밀 탐지</button></div><p class="hint">얼굴 감지는 오프라인으로 작동합니다. HEIC/HEIF는 브라우저에서 바로 열리지 않으면 변환 엔진을 온라인으로 불러옵니다(인터넷 필요). 사진 데이터는 브라우저 안에서 처리되며 업로드하지 않습니다. 가로 단체사진은 작은 얼굴을 중첩 구역으로 재탐지합니다. 정밀 탐지는 더욱 촘촘하게 분석하므로 모바일에서 시간이 걸릴 수 있습니다. 누락된 얼굴은 수동으로 추가하세요.</p><details class="debug-panel"><summary>얼굴 감지 진단 정보</summary><pre id="diagnostics" aria-label="자동 감지 진단 정보">사진을 불러오세요.</pre><button type="button" class="btn" id="copyDiagnostics">진단 내용 복사</button></details></section>
 <section class="panel"><div class="panel-header"><h2>02. 보호할 얼굴 선택</h2><span class="panel-count" id="peopleCount">0 FACES</span></div><p class="sec-description">사진에서 <b style="color:var(--accent)">그대로 남길 얼굴</b>을 누르세요. 선택하지 않은 얼굴은 전부 가립니다.</p><div class="faces" id="faceList"><span class="empty-list">사진을 불러오면 얼굴 목록이 표시됩니다.</span></div><div class="action-row" style="margin-top:12px"><button class="btn" id="keepNone" disabled>전체 가리기</button><button class="btn" id="keepAll" disabled>전체 유지</button></div><div class="sep"></div><div class="action-row"><button class="btn" id="undoBtn" disabled>↶ 실행 취소</button><button class="btn" id="redoBtn" disabled>↷ 다시 실행</button></div><p class="hint">자동 감지에서 빠진 얼굴은 상단 <b>영역 추가</b>를 선택해 드래그하세요. 얼굴 테두리는 드래그로 이동, 오른쪽 아래 점으로 크기 조절이 가능합니다.</p></section>
 <section class="panel"><div class="panel-header"><h2>03. 얼굴 가리기 효과</h2><span class="panel-count">STYLE</span></div><div class="choice" role="group" aria-label="가리기 방식"><button class="selected" data-effect="emoji">이모티콘</button><button data-effect="mosaic">모자이크</button><button data-effect="blur">블러</button></div>
 <div id="emojiOptions"><div class="emoji-grid" id="emojiGrid" aria-label="이모티콘 선택"></div><div class="input-group"><input id="customEmoji" class="input-text" type="text" placeholder="원하는 이모지 입력 (예: 🐻)" maxlength="16" aria-label="원하는 이모지"><button class="btn" id="emojiApply">적용</button></div><div class="action-row" style="margin-top:9px"><button class="btn" id="stickerLoad">＋ PNG 스티커</button><button class="btn" id="stickerClear">기본 이모지</button></div><input class="visually-hidden" type="file" accept="image/png,image/webp,image/gif,image/jpeg" id="stickerInput"><div class="filemeta" id="stickerInfo">현재 선택한 이모티콘이 모든 대상 얼굴에 적용됩니다.</div></div>
@@ -256,7 +256,7 @@ const DETECT_MODELS={front:MODEL_DEFAULT,alternative:MODEL_FRONTALFACE_ALT,profi
 let lastDiagnostics={version:'0.8.1',event:'사진을 아직 불러오지 않음'};
 function reportDiagnostics(extra={}){
  const status=els.statusText.textContent;
- lastDiagnostics={...lastDiagnostics,version:'0.8.0',status,...extra};
+ lastDiagnostics={...lastDiagnostics,version:'0.9.0',status,...extra};
  $('diagnostics').textContent=JSON.stringify(lastDiagnostics,null,2);
 }
 function scaledFeatures(model,scale){
@@ -400,7 +400,7 @@ async function detectFaces(detailed){
  if(!state.img||state.detecting)return;
  const task=++state.detectTask;state.detecting=true;syncButtons();
  const start=performance.now();
- lastDiagnostics={version:'0.8.0',event:'탐지 시작',mode:detailed?'정밀':'일반',imageWidth:state.W,imageHeight:state.H,engine:'AI BlazeFace 우선 + 내장 Haar 보조',nativeAPI:typeof window.FaceDetector==='function',userAgent:navigator.userAgent};
+ lastDiagnostics={version:'0.9.0',event:'탐지 시작',mode:detailed?'정밀':'일반',imageWidth:state.W,imageHeight:state.H,engine:'AI BlazeFace 우선 + 내장 Haar 보조',nativeAPI:typeof window.FaceDetector==='function',userAgent:navigator.userAgent};
  reportDiagnostics();
  try{
   let detected=[],aiWorked=false,aiError='',autoEnhanced=false,aiPasses=0,aiRejected=0,landmarksAvailable=false,smart=null;
