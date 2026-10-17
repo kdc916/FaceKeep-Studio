@@ -7,6 +7,7 @@ on:
       - '.github/workflows/face-ai-smoke.yml'
       - 'qa/face-ai-smoke.mjs'
       - 'qa/portrait-layout-smoke.mjs'
+      - 'index.html'
 
 permissions:
   contents: read
