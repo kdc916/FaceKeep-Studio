@@ -46,7 +46,7 @@ async function initialize(status){
     const shortURL=(hasModels&&await exists(localModels.short))?localModels.short:MODELS.short;
     short=await createDetector(mod,wasm,shortURL,0.33);
    }catch(e){console.warn('FaceKeep: short-range model unavailable',e)}
-   return {full,short,mod,wasm,verifierPromise:null,engine:hasModels&&wasmURL===localWasm?'내장 MediaPipe BlazeFace':'MediaPipe BlazeFace (온라인 모델)'};
+   return {full,short,mod,wasm,verifierPromise:null,scannerPromise:null,engine:hasModels&&wasmURL===localWasm?'내장 MediaPipe BlazeFace':'MediaPipe BlazeFace (온라인 모델)'};
   }catch(e){last=e;console.warn('FaceKeep: AI init candidate failed',wasmURL,e)}
  }
  throw Error(`AI 모델 초기화 실패: ${last?.message||last}`);
@@ -74,25 +74,22 @@ function axisStarts(length,windowSize,overlap=.27){
  const out=[];for(let i=0;i<n;i++)out.push(Math.round(i*(length-windowSize)/(n-1)));
  return [...new Set(out)];
 }
-function tilesFor(W,H,{detailed=false,dense=false}={}){
- const panorama=Math.max(W,H)/Math.max(1,Math.min(W,H))>=2;
- const tall=H>W;
- const target=dense?(detailed?360:420):(detailed?850:1100);
- let tileW=Math.min(W,target),tileH=Math.min(H,target);
- if(panorama){
-  if(tall)tileW=W, tileH=Math.min(H,target*.78);
-  else tileH=Math.min(H,target*.86),tileW=Math.min(W,target);
+function tilesFor(W,H,{detailed=false,dense=false,targetOverride=null,limitOverride=null}={}){
+ const wide=W/H>=1.8,tall=H/W>=2;
+ const target=targetOverride||(dense?(detailed?360:420):(detailed?850:1100));
+ const limit=limitOverride||(dense?(detailed?42:30):18);
+ // Keep FULL image coverage. Sampling every Nth tile creates undetected gaps.
+ let tileW,tileH,regions=[];
+ for(let attempt=0;attempt<16;attempt++){
+  const t=target*Math.pow(1.10,attempt);
+  tileW=Math.min(W,t);tileH=Math.min(H,t*(wide?.9:1));
+  if(tall){tileW=Math.min(W,t*.88);tileH=Math.min(H,t)}
+  const xs=axisStarts(W,tileW,dense?.33:.27);
+  const ys=axisStarts(H,tileH,dense?.33:.27);
+  regions=[];for(const y of ys)for(const x of xs)regions.push({x,y,w:tileW,h:tileH});
+  if(regions.length<=limit)break;
  }
- const xs=axisStarts(W,tileW,dense?.30:.24),ys=axisStarts(H,tileH,dense?.30:.24);
- const out=[];
- for(const y of ys)for(const x of xs)out.push({x,y,w:tileW,h:tileH});
- // Bound inference costs on very large files. Coarse tiles run separately.
- const limit=dense?(detailed?40:24):16;
- if(out.length<=limit)return out;
- const stride=Math.ceil(out.length/limit);
- const sample=out.filter((_,i)=>i%stride===0);
- if(!sample.some(r=>r.x+r.w>=W-1&&r.y+r.h>=H-1))sample.push({x:W-tileW,y:H-tileH,w:tileW,h:tileH});
- return sample;
+ return regions;
 }
 function rotatedPass(detector,im,angle,W,H){
  const original=canvasRegion(im,{x:0,y:0,w:W,h:H},1200);
@@ -143,6 +140,58 @@ async function verifierReady(ai){
  })().catch(e=>{console.warn('FaceKeep face landmark verifier unavailable:',e);return null});
  return ai.verifierPromise;
 }
+// Independent face discovery: FaceLandmarker also contains a face detector.
+// It can recover faces that BlazeFace never proposed.
+async function scannerReady(ai){
+ if(ai.scannerPromise)return ai.scannerPromise;
+ ai.scannerPromise=(async()=>{
+  const local=new URL('./vendor/models/face_landmarker.task',BASE).href;
+  const model=(await exists(local))?local:LANDMARKER_MODEL;
+  return ai.mod.FaceLandmarker.createFromOptions(ai.wasm,{
+   baseOptions:{modelAssetPath:model,delegate:'CPU'},runningMode:'IMAGE',numFaces:12,
+   minFaceDetectionConfidence:.32,minFacePresenceConfidence:.38,
+   outputFaceBlendshapes:false,outputFacialTransformationMatrixes:false
+  });
+ })().catch(e=>{console.warn('FaceKeep independent landmarker scan unavailable',e);return null});
+ return ai.scannerPromise;
+}
+function boxFromLandmarks(landmarks,r,W,H,source='랜드마크 보강'){
+ if(!landmarks||landmarks.length<450)return null;
+ const ids=[10,152,234,454,33,263,1,4,61,291];
+ if(ids.some(i=>!landmarks[i]||!Number.isFinite(landmarks[i].x)||!Number.isFinite(landmarks[i].y)))return null;
+ const xx=[10,152,234,454,33,263].map(i=>landmarks[i].x),yy=[10,152,234,454,33,263].map(i=>landmarks[i].y);
+ const mnx=Math.min(...xx),mxx=Math.max(...xx),mny=Math.min(...yy),mxy=Math.max(...yy);
+ let w=(mxx-mnx)*r.w*1.20,h=(mxy-mny)*r.h*1.22;
+ if(w<9||h<9||w>r.w*.92||h>r.h*.93)return null;
+ const cx=r.x+(mnx+mxx)/2*r.w,cy=r.y+(mny+mxy)/2*r.h;
+ const x=Math.max(0,cx-w/2),y=Math.max(0,cy-h/2);
+ w=Math.min(w,W-x);h=Math.min(h,H-y);
+ if(w<9||h<9)return null;
+ return{x,y,w,h,score:2.8,confidence:1,source,verified:true};
+}
+async function rescueFaces(ai,image,{detailed=false,status=()=>{},cancelled=()=>false}={}){
+ const scanner=await scannerReady(ai);
+ if(!scanner)return{faces:[],scans:0};
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ const small=Math.min(W,H)<550;
+ const target=small?(detailed?215:285):(detailed?430:650);
+ const regions=[{x:0,y:0,w:W,h:H},...tilesFor(W,H,{dense:true,detailed,targetOverride:target,limitOverride:detailed?38:22})];
+ const faces=[];
+ for(let i=0;i<regions.length;i++){
+  if(cancelled())return{faces:[],scans:i,cancelled:true};
+  const r=regions[i];status(`누락 얼굴 추가 탐색 ${i+1}/${regions.length}`);
+  const {canvas}=canvasRegion(image,r,1100);
+  try{
+   const found=scanner.detect(canvas).faceLandmarks||[];
+   for(const landmarks of found){
+    const box=boxFromLandmarks(landmarks,r,W,H);
+    if(box)faces.push(box);
+   }
+  }catch(e){console.warn('FaceKeep additional face scan failed',e)}
+  if(i%3===2)await tick();
+ }
+ return{faces,scans:regions.length};
+}
 function cropCandidate(image,b){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const cx=b.x+b.w/2,cy=b.y+b.h/2;
@@ -172,24 +221,26 @@ async function verifyClusters(ai,image,boxes,{status=()=>{},cancelled=()=>false}
  const verifier=await verifierReady(ai);
  const accepted=[],rejected=[];
  if(!verifier){
-  // Degraded mode: only retain candidates confirmed by independent full/short passes.
   for(const g of grouped){
-   if(g.sources.size>=2&&g.hits>=2&&g.confidence>=0.60)accepted.push(g.best);
+   if(g.sources.size>=2&&g.hits>=2&&g.confidence>=.65)accepted.push(g.best);
    else rejected.push(g.best);
   }
   return{faces:accepted,rejected:rejected.length,landmarksAvailable:false};
  }
  for(let i=0;i<grouped.length;i++){
   if(cancelled())break;
-  const g=grouped[i];
-  status(`얼굴 특징점 검증 ${i+1}/${grouped.length} · 오탐지 제거`);
+  const g=grouped[i];status(`얼굴 특징점 검증 ${i+1}/${grouped.length}`);
   const crop=cropCandidate(image,g.best);
-  let valid=false;
+  let improved=null;
   try{
    const answer=verifier.detect(crop.canvas);
-   valid=(answer.faceLandmarks||[]).some(lm=>geometryVerified(lm,crop,g.best));
+   for(const lm of answer.faceLandmarks||[]){
+    if(!geometryVerified(lm,crop,g.best))continue;
+    const refined=boxFromLandmarks(lm,crop,image.naturalWidth||image.width,image.naturalHeight||image.height,'특징점 검증');
+    if(refined && (!improved || matching(refined,g.best)))improved=refined;
+   }
   }catch(e){console.warn('Face landmark candidate verification error',e)}
-  if(valid)accepted.push({...g.best,verified:true});
+  if(improved)accepted.push({...improved,score:2.8,verified:true});
   else rejected.push(g.best);
   if(i%3===2)await tick();
  }
@@ -211,7 +262,7 @@ export async function detectFacesNeural(image,{detailed=false,status=()=>{},canc
   }
  }
  // Wide team/school photos need a finer scan even when "Auto" is selected.
- const groupLike=W/H>=1.75&&W>=1400;
+ const groupLike=(W>=400&&W/H>=1.25)||(H>=750&&H/W>=1.6);
  if(detailed||groupLike){
   const dense=tilesFor(W,H,{detailed,dense:true});
   for(const [i,r] of dense.entries()){
@@ -235,6 +286,10 @@ export async function detectFacesNeural(image,{detailed=false,status=()=>{},canc
   }
  }
  const verified=await verifyClusters(ai,image,found,{status,cancelled});
- return{faces:verified.faces,rejected:verified.rejected,landmarksAvailable:verified.landmarksAvailable,
- engine:ai.engine+(verified.landmarksAvailable?' + Face Landmarker 2차 검증':' (검증기 미사용)'),passes:passes.length,primary:found.length};
+ const rescued=await rescueFaces(ai,image,{detailed,status,cancelled});
+ if(cancelled())return{faces:[],cancelled:true,passes:passes.length};
+ const final=clusterCandidates([...verified.faces,...rescued.faces]).map(g=>g.best);
+ return{faces:final,rejected:verified.rejected,landmarksAvailable:verified.landmarksAvailable,
+  rescued:final.filter(b=>b.source==='랜드마크 보강').length,rescueScans:rescued.scans,
+  engine:ai.engine+(verified.landmarksAvailable?' + 얼굴 특징점 검증·독립 탐색':' (검증기 미사용)'),passes:passes.length,primary:found.length};
 }
