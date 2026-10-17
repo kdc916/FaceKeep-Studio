@@ -76,7 +76,8 @@ function axisStarts(length,windowSize,overlap=.27){
 }
 function tilesFor(W,H,{detailed=false,dense=false,targetOverride=null,limitOverride=null}={}){
  const wide=W/H>=1.8,tall=H/W>=2;
- const target=targetOverride||(dense?(detailed?360:420):(detailed?850:1100));
+ const smallInput=Math.min(W,H)<550;
+ const target=targetOverride||(dense?(smallInput?(detailed?215:270):(detailed?360:420)):(detailed?850:1100));
  const limit=limitOverride||(dense?(detailed?42:30):18);
  // Keep FULL image coverage. Sampling every Nth tile creates undetected gaps.
  let tileW,tileH,regions=[];
@@ -174,7 +175,7 @@ async function rescueFaces(ai,image,{detailed=false,status=()=>{},cancelled=()=>
  if(!scanner)return{faces:[],scans:0};
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const small=Math.min(W,H)<550;
- const target=small?(detailed?215:285):(detailed?430:650);
+ const target=small?(detailed?175:200):(detailed?430:650);
  const regions=[{x:0,y:0,w:W,h:H},...tilesFor(W,H,{dense:true,detailed,targetOverride:target,limitOverride:detailed?38:22})];
  const faces=[];
  for(let i=0;i<regions.length;i++){
