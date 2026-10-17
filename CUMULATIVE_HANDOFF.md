@@ -1,6 +1,6 @@
 # FaceKeep Studio — 누적 개발 인수인계
 
-최신: **v0.8.0 (2026-10-17)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
+최신: **v0.8.1 (2026-10-18)** · 공식 저장소: https://github.com/kdc916/FaceKeep-Studio · main 브랜치
 
 ## 프로젝트
 - 단일 `index.html`의 인라인 JS/CSS, Canvas 2D 기반 브라우저 사진 편집 앱.
@@ -16,6 +16,24 @@
 - **v0.5.0:** 블러/모자이크 경계 외측에 Smoothstep 기반 투명 페더 추가. `softFeather` 0~60% (기본 22%). 타원형/직사각형 마스크 모두 지원. 얼굴 커버 내부는 알파 100%로 보호. 미리보기 리샘플링 소스 `state.previewSource` 사용. 모자이크 셀 크기를 페더 조절과 독립 계산.
 
 
+
+## v0.8.1 — 얼굴 특징점 기반 오탐 제거 (2026-10-18)
+
+문제: 영아의 손/옷 등 얼굴이 없는 이미지 패턴에 AI 및 Haar 감지 박스가 나타남. 사용자의 실제 화면에서는 아기 손이 `4 유지`로 표시됨. 원본 비가공 사진이 아닌 UI 스크린샷만 제공되어 동일 상황의 직접 인식 재현은 미완료.
+
+수정:
+- `ai-detector.js`에 MediaPipe `FaceLandmarker` 기반 `verifyClusters` / `verifyExtraCandidates` 추가.
+- BlazeFace 모든 패스의 후보를 공간적으로 묶고, 원본 이미지에서 후보별 크롭으로 눈·코·얼굴 윤곽의 특징점 구조를 검사.
+- `vendor/models/face_landmarker.task`는 `.github/workflows/vendor-face-ai.yml`에서 함께 다운로드/커밋.
+- AI 감지 성공 시 Haar 보조 결과도 동일한 특징점 검증을 통과해야 등록 가능.
+- 검증기가 준비되지 않은 경우 두 독립적 탐지 패스가 동시에 지지하는 높은 점수의 후보만 허용하는 제한 모드.
+- `index.html`: 재감지할 때 이전 자동 생성 박스를 새 검증 결과에 맞게 갱신/제거, 수동 영역 보존, 기존 얼굴의 유지/가리기 상태 유지.
+- 진단 필드: `faceLandmarks`, `rejected`, `removed`.
+
+테스트:
+- Chromium에서 MediaPipe Face Landmarker 모델 로딩 및 9개 얼굴 합성사진 9/9, 약한 블러 및 20도 기울기 얼굴 검출 확인.
+- 손 사진과 실제 사용자 오탐 사례의 모델 직접 비교는 별도 회귀 테스트로 지속.
+- 얼굴이 심하게 가려지거나 흔들린 사진에서 특징점 검증이 실제 얼굴을 제외할 수 있으므로 육안 확인 및 수동 추가 안내 필요.
 
 ## v0.8.0 — 세로 사진 Fit/100%·터치 이동
 - 원인: 기존 `layoutCanvas`가 viewport 가로만으로 크기를 정함. 특히 모바일의 42vh 높이 제한으로 세로사진 끝이 스크롤 영역 뒤에 남아 마지막 컷에서 선택하기 어려움.
