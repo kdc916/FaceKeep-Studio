@@ -9,8 +9,14 @@ try{
  await page.goto('http://127.0.0.1:8787/',{waitUntil:'domcontentloaded'});
  const outcome=await page.evaluate(async()=>{
   const img=new Image();img.src='/qa/lena.jpg';await img.decode();
-  const {detectFacesNeural}=await import('./ai-detector.js');
+  const {detectFacesNeural,verifyExtraCandidates}=await import('./ai-detector.js');
   const single=await detectFacesNeural(img,{detailed:false,status:()=>{}});
+  const hands=new Image();hands.src='/qa/hands.jpg';await hands.decode();
+  const hw=hands.naturalWidth,hh=hands.naturalHeight;
+  const pretendHand={x:hw*.10,y:hh*.12,w:hw*.39,h:hh*.75,confidence:0.99,score:2.9,source:'Haar 손 오탐 사례'};
+  const handValidation=await verifyExtraCandidates(hands,[pretendHand],{status:()=>{}});
+  const handAuto=await detectFacesNeural(hands,{detailed:true,status:()=>{}});
+
   const c=document.createElement('canvas');c.width=1536;c.height=1536;
   const ctx=c.getContext('2d');
   for(let y=0;y<3;y++)for(let x=0;x<3;x++)ctx.drawImage(img,x*512,y*512,512,512);
@@ -26,7 +32,7 @@ try{
   const dedup=[];
   const overlaps=(a,b)=>{const x=Math.max(a.x,b.x),y=Math.max(a.y,b.y),w=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-x),h=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-y);const ins=w*h;return ins/(a.w*a.h+b.w*b.h-ins)>.28||ins/Math.min(a.w*a.h,b.w*b.h)>.58};
   for(const f of detected)if(!dedup.some(a=>overlaps(a,f)))dedup.push(f);
-  return {engine:single.engine,singleFaces:single.faces.length,rotatedFaces:rotated.faces.length,blurredFaces:blurred.faces.length,montageRaw:group.faces.length,montageUnique:dedup.length,
+  return {engine:single.engine,singleFaces:single.faces.length,handManualVerified:handValidation.faces.length,handAutoFaces:handAuto.faces.length,landmarksAvailable:single.landmarksAvailable,rotatedFaces:rotated.faces.length,blurredFaces:blurred.faces.length,montageRaw:group.faces.length,montageUnique:dedup.length,
     groupBoxes:dedup.map(b=>({x:Math.round(b.x),y:Math.round(b.y),w:Math.round(b.w),h:Math.round(b.h)}))};
  });
  const groupPng=await page.evaluate(async()=>{
@@ -43,5 +49,5 @@ try{
  if(uiFaces<8)process.exitCode=1;
  console.log('FACEKEEP_QA',JSON.stringify(outcome));
  console.log('PAGE_ERRORS',JSON.stringify(errors));
- if(outcome.singleFaces<1||outcome.rotatedFaces<1||outcome.blurredFaces<1||outcome.montageUnique<8||errors.length)process.exitCode=1;
+ if(outcome.singleFaces<1||!outcome.landmarksAvailable||outcome.handManualVerified!==0||outcome.handAutoFaces!==0||outcome.rotatedFaces<1||outcome.blurredFaces<1||outcome.montageUnique<8||errors.length)process.exitCode=1;
 }finally{await browser.close()}
